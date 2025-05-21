@@ -7,7 +7,6 @@ from fpdf import FPDF
 import tempfile
 import os
 from pathlib import Path
-import numpy as np
 
 # Configuración global
 pio.templates.default = "plotly"
@@ -94,7 +93,8 @@ if 'step' not in st.session_state:
         'Real': [''] * 12
     })
 
-# Opciones para selector de producto (fila 2)
+# Opciones para selectores
+sectores_opciones = ["MOP-I", "MOP-II", "POZAS"]
 productos_opciones = [
     "BISCHOFITA", "MOP 70", "MOP TALCO", "MOP TALCO MAXIS", "MOP-G",
     "MOP-G (Rojo)", "MOP-G 59", "MOP-G O", "MOP-G PLUS", "MOP-G R 59",
@@ -103,11 +103,6 @@ productos_opciones = [
     "SOP-G", "SOP-H", "SOP-O", "SOP-S Talco", "USOP52",
     "MOP 50", "SOP FINO", "LSI (S)"
 ]
-
-# Opciones para selector de sector (fila 1)
-sectores_opciones = ["MOP-I", "MOP-II", "POZAS"]
-
-# Opciones para selector de destino (fila 2)
 destinos_opciones = [
     "Antofagasta, P De Litio",
     "Calama",
@@ -139,7 +134,7 @@ destinos_opciones = [
     "Centro PANG"
 ]
 
-# Función para convertir tiempo en minutos
+# Funciones auxiliares
 def tiempo_a_minutos(tiempo_str):
     try:
         horas, minutos = map(int, tiempo_str.split(':'))
@@ -151,7 +146,7 @@ def minutos_a_tiempo(minutos):
     return f"{minutos//60:02d}:{minutos%60:02d}"
 
 # Interfaz principal
-st.title("📊 Dashboard: Equipos por Hora, Empresa, Fecha y Destino")
+st.title("📋 Sistema de Registro Operacional")
 
 # Paso 1: Datos principales
 if st.session_state.step == 1:
@@ -179,7 +174,7 @@ if st.session_state.step == 1:
                 st.session_state.step = 2
                 st.rerun()
 
-# Paso 2: Tabla de empresas transportistas
+# Paso 2: Empresas transportistas
 elif st.session_state.step == 2:
     st.header("🏭 Paso 2: Empresas Transportistas")
     df = st.session_state.tabla_empresas.copy()
@@ -232,45 +227,48 @@ elif st.session_state.step == 3:
     st.write("Complete los valores programados y reales para cada indicador:")
 
     for i in range(12):
-        cols = st.columns([3, 2, 2])
-        with cols[0]:
-            st.markdown(f"**{nombres_filas[i]}**")
+        if i < 3:  # Para las filas 0, 1 y 2 (Sector, Producto, Destino)
+            cols = st.columns([3, 2])  # Solo Programado
+            with cols[0]:
+                st.markdown(f"**{nombres_filas[i]}**")
 
-        # Fila 0: Selector de sector
-        if i == 0:
-            with cols[1]:
-                df_op.at[i, 'Programado'] = st.selectbox(
-                    "Sector",
-                    sectores_opciones,
-                    index=sectores_opciones.index(df_op.at[i, 'Programado']) if df_op.at[i, 'Programado'] in sectores_opciones else 0,
-                    key=f"sector_{i}",
-                    label_visibility="collapsed"
-                )
+            # Fila 0: Selector de sector
+            if i == 0:
+                with cols[1]:
+                    df_op.at[i, 'Programado'] = st.selectbox(
+                        "Sector",
+                        sectores_opciones,
+                        index=sectores_opciones.index(df_op.at[i, 'Programado']) if df_op.at[i, 'Programado'] in sectores_opciones else 0,
+                        key=f"sector_{i}",
+                        label_visibility="collapsed"
+                    )
 
-        # Fila 1: Selector de producto
-        elif i == 1:
-            with cols[1]:
-                df_op.at[i, 'Programado'] = st.selectbox(
-                    "Producto",
-                    productos_opciones,
-                    index=productos_opciones.index(df_op.at[i, 'Programado']) if df_op.at[i, 'Programado'] in productos_opciones else 0,
-                    key=f"producto_{i}",
-                    label_visibility="collapsed"
-                )
+            # Fila 1: Selector de producto
+            elif i == 1:
+                with cols[1]:
+                    df_op.at[i, 'Programado'] = st.selectbox(
+                        "Producto",
+                        productos_opciones,
+                        index=productos_opciones.index(df_op.at[i, 'Programado']) if df_op.at[i, 'Programado'] in productos_opciones else 0,
+                        key=f"producto_{i}",
+                        label_visibility="collapsed"
+                    )
 
-        # Fila 2: Selector de destino
-        elif i == 2:
-            with cols[1]:
-                df_op.at[i, 'Programado'] = st.selectbox(
-                    "Destino",
-                    destinos_opciones,
-                    index=destinos_opciones.index(df_op.at[i, 'Programado']) if df_op.at[i, 'Programado'] in destinos_opciones else 0,
-                    key=f"destino_{i}",
-                    label_visibility="collapsed"
-                )
+            # Fila 2: Selector de destino
+            elif i == 2:
+                with cols[1]:
+                    df_op.at[i, 'Programado'] = st.selectbox(
+                        "Destino",
+                        destinos_opciones,
+                        index=destinos_opciones.index(df_op.at[i, 'Programado']) if df_op.at[i, 'Programado'] in destinos_opciones else 0,
+                        key=f"destino_{i}",
+                        label_visibility="collapsed"
+                    )
 
-        # Resto de las filas: campos normales
         else:
+            cols = st.columns([3, 2, 2])
+            with cols[0]:
+                st.markdown(f"**{nombres_filas[i]}**")
             with cols[1]:
                 df_op.at[i, 'Programado'] = st.text_input(
                     f"Prog. {i+1}",
@@ -278,13 +276,13 @@ elif st.session_state.step == 3:
                     key=f"prog_op_{i}",
                     label_visibility="collapsed"
                 )
-        with cols[2]:
-            df_op.at[i, 'Real'] = st.text_input(
-                f"Real {i+1}",
-                value=df_op.at[i, 'Real'],
-                key=f"real_op_{i}",
-                label_visibility="collapsed"
-            )
+            with cols[2]:
+                df_op.at[i, 'Real'] = st.text_input(
+                    f"Real {i+1}",
+                    value=df_op.at[i, 'Real'],
+                    key=f"real_op_{i}",
+                    label_visibility="collapsed"
+                )
 
     st.session_state.tabla_operacional = df_op
 
@@ -335,6 +333,11 @@ elif st.session_state.step == 4:
         if st.button("💾 Guardar Definitivamente"):
             st.balloons()
             st.success("Datos guardados exitosamente!")
+            st.write("Datos Principales:", st.session_state.datos_principales)
+            st.write("Empresas Transportistas:")
+            st.dataframe(st.session_state.tabla_empresas)
+            st.write("Datos Operacionales:")
+            st.dataframe(st.session_state.tabla_operacional)
 
     if st.checkbox("Descargar datos como CSV"):
         combined_df = pd.concat([
@@ -490,12 +493,11 @@ if uploaded_file:
                             if logo_path and os.path.exists(logo_path):
                                 logo_img = Image.open(logo_path)
                                 logo_width = 120
-                                wpercent = (logo_width / float(logo_img.size[0]))
+                                wpercent = (logo_width / float(logo_img.size[0])
                                 hsize = int((float(logo_img.size[1]) * float(wpercent)))
                                 logo_img = logo_img.resize((logo_width, hsize), Image.LANCZOS)
-                                grafico_img = Image.open(grafico_path)
-                                logo_bg = Image.new('RGBA', (grafico_img.width, logo_img.height), (255, 255, 255, 0))
-                                logo_bg.paste(logo_img, ((grafico_img.width - logo_width)//2, 0), logo_img if logo_img.mode == 'RGBA' else None)
+                                logo_bg = Image.new('RGBA', (900, logo_img.height), (255, 255, 255, 0))
+                                logo_bg.paste(logo_img, ((900 - logo_width)//2, 0), logo_img if logo_img.mode == 'RGBA' else None)
                                 images_to_stack.append(logo_bg.convert('RGB'))
 
                             grafico_img = Image.open(grafico_path)
@@ -504,7 +506,7 @@ if uploaded_file:
                             resized_imgs = []
                             for img in images_to_stack:
                                 if img.width != base_width:
-                                    wpercent = (base_width / float(img.size[0]))
+                                    wpercent = (base_width / float(img.size[0])
                                     hsize = int((float(img.size[1]) * float(wpercent)))
                                     img = img.resize((base_width, hsize), Image.LANCZOS)
                                 resized_imgs.append(img)
